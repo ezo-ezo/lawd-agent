@@ -1,5 +1,6 @@
 import os
-from dotenv import load_dotenv # type: ignore
+from typing import Any
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
 load_dotenv()
@@ -21,3 +22,32 @@ class LLMClient:
         if self._client:
             await self._client.close()
             self._client = None
+    
+    async def chat_completion(
+            self,
+            messages: list[dict[str, Any]],
+            stream: bool = True,       
+    ):
+        client = self.get_client()
+
+        kwargs = {
+            "model":"google/gemma-3n-e4b-it:free",
+            "messages": messages,
+            "stream": stream,
+        }
+
+        if stream:
+            self._stream_response()
+        else:
+            await self._non_stream_response(client, kwargs)
+
+    async def _stream_response(self):
+        pass
+
+    async def _non_stream_response(
+        self,
+        client: AsyncOpenAI,
+        kwargs: dict[str, Any],            
+    ):
+        response = await client.chat.completions.create(**kwargs)
+        print(response)
