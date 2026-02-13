@@ -1,7 +1,9 @@
 import os
-from typing import Any
+from typing import Any, AsyncGenerator
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
+
+from client.response import StreamEvent, TextDelta, TokenUsage, StreamEventType
 
 load_dotenv()
 
@@ -27,7 +29,7 @@ class LLMClient:
             self,
             messages: list[dict[str, Any]],
             stream: bool = True,       
-    ):
+    ) -> AsyncGenerator[StreamEvent, None]:
         client = self.get_client()
 
         kwargs = {
@@ -39,7 +41,8 @@ class LLMClient:
         if stream:
             self._stream_response()
         else:
-            await self._non_stream_response(client, kwargs)
+            event = await self._non_stream_response(client, kwargs)
+            yield event
 
     async def _stream_response(self):
         pass
@@ -48,6 +51,26 @@ class LLMClient:
         self,
         client: AsyncOpenAI,
         kwargs: dict[str, Any],            
-    ):
+    ) -> StreamEvent:
         response = await client.chat.completions.create(**kwargs)
-        print(response)
+        choice = response.choices[0]
+        messege = choice.message
+
+        text_delta = None
+        if messege.content:
+            text_delta = TextDelta(content = messege.content)
+
+        if response.usage:
+            usage = TokenUsage(
+                prompt_tokens = response.usage.prompt_tokens,
+                completion_tokens = response.usage.completion_tokens,
+                total_tokens = response.usage.total_tokens,
+                cached_tokens = response.usage.prompt_tokens_details.cached_tokens,
+            )
+        
+        return StreamEvent(
+            type=StreamEventType.MESSAGE_COMPLETE,
+            text_delta=text_delta,
+            finish_reason=choice.finish_reason,
+            usage=usage
+        )
