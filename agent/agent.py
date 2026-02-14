@@ -1,0 +1,43 @@
+from typing import AsyncGenerator
+
+from click import prompt
+
+from agent.events import AgentEvent
+from client.llm_client import LLMClient
+from client.response import StreamEventType
+
+
+class Agent:
+    def __init__(self):
+        self.client = LLMClient()
+
+    async def run(self, message: str):
+        yield AgentEvent.agent_start(message)
+        # add user message to context
+
+        async for event in self._agentic_loop():
+            yield event
+        
+        if event.type == StreamEventType.TEXT_COMPLETE:
+            final_response = event.data.get("content")
+
+        yield AgentEvent.agent_end(final_response)
+
+    async def _agentic_loop(self) -> AsyncGenerator[AgentEvent, None]:
+        messages = [{"role": "user", "content": "hey, what is going on?"}]
+
+        response_text = ""
+
+        async for event in self.client.chat_completion(messages, True):
+            if event.type == StreamEventType.TEXT_DELTA:
+                content = event.text_delta.content
+                response_text += content
+                yield AgentEvent.text_delta(content)
+            elif event.type == StreamEventType.ERROR:
+                yield AgentEvent.agent_error(
+                    event.error or "Unknown error occurred",
+                    )
+                
+
+        if  response_text:
+            yield AgentEvent.text_complete(response_text)
