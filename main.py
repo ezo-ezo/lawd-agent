@@ -9,12 +9,12 @@ async def main():
     messages = [{"role": "user", "content": "What's up"}]
 
     try:
-        async for event in client.chat_completion(messages, False):
+        async for event in client.chat_completion(messages, True):
             print(event)
     except RateLimitError:
         print("Rate limited. Retrying in 5 seconds...")
         await asyncio.sleep(5)
-        async for event in client.chat_completion(messages, False):
+        async for event in client.chat_completion(messages, True):
             print(event)
     print('done')
 
