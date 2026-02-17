@@ -45,7 +45,7 @@ class CLI:
                     assistant_streaming = False
 
             elif event.type == AgentEventType.AGENT_ERROR:
-                eroor = event.data.get("error", "Unknown error")
+                error = event.data.get("error", "Unknown error")
                 console.print(f"\n[error]ERROR: {error}[/error]")
 
 

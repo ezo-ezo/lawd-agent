@@ -6,13 +6,16 @@ from click import prompt
 from agent.events import AgentEvent, AgentEventType
 from client.llm_client import LLMClient
 from client.response import StreamEventType
+from context.manager import ContextManager
 
 class Agent:
     def __init__(self):
         self.client = LLMClient()
+        self.context_manager = ContextManager()
 
     async def run(self, message: str):
         yield AgentEvent.agent_start(message)
+        self.context_manager.add_user_message(message)
         # add user message to context
         final_response: str | None = None
         async for event in self._agentic_loop():
@@ -24,11 +27,9 @@ class Agent:
         yield AgentEvent.agent_end(final_response)
 
     async def _agentic_loop(self) -> AsyncGenerator[AgentEvent, None]:
-        messages = [{"role": "user", "content": "hey, what is going on?"}]
-
         response_text = ""
 
-        async for event in self.client.chat_completion(messages, True):
+        async for event in self.client.chat_completion(self.context_manager.get_messages(), True):
             if event.type == StreamEventType.TEXT_DELTA:
                 if event.text_delta:
                     content = event.text_delta.content
@@ -39,7 +40,11 @@ class Agent:
                     event.error or "Unknown error occurred",
                     )
                 
-        if  response_text:
+        self.context_manager.add_assistant_message(
+            response_text or "",
+        )
+        
+        if response_text:
             yield AgentEvent.text_complete(response_text)
 
     async def __aenter__(self) -> Agent:

@@ -77,6 +77,13 @@ class LLMClient:
                     error = f"API error: {e}",
                 )
                 return
+            except OSError as e:
+                yield StreamEvent(
+                    type=StreamEventType.ERROR,
+                    error=e,   # pass real exception object
+                )
+                return
+
             
     async def _stream_response(
         self,
